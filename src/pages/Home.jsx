@@ -217,7 +217,7 @@ const Home = () => {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-sm sm:text-base md:text-lg text-white/60 leading-relaxed">
-            CodeShare is the fastest way to share and collaborate on code in real-time.
+            CodeSpace is the fastest way to share and collaborate on code in real-time.
             No sign-up needed &mdash; just paste, share the link, and start coding together.
           </p>
 
