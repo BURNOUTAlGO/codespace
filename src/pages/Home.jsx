@@ -13,6 +13,9 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { generateRoomId } from "../utils/generateRoomId";
+import { doc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase";
+
 
 /* ---------- Syntax color map ---------- */
 const COLOR = {
@@ -119,10 +122,25 @@ const Home = () => {
 
   const total = useMemo(() => fileCharCount(FILES[activeFile]), [activeFile]);
 
-  const handleShareCode = () => {
-    const roomId = generateRoomId();
-    navigate(`/s/${roomId}`);
-  };
+const handleShareCode = async () => {
+  const roomId = generateRoomId();
+
+  // Create room document
+  await setDoc(doc(db, "rooms", roomId), {
+    createdAt: serverTimestamp(),
+  });
+
+  // Create default file
+  await addDoc(collection(db, "rooms", roomId, "files"), {
+    name: "untitled",
+    code: "",
+    description: "",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  navigate(`/s/${roomId}`);
+};
 
   /* Star field */
   useEffect(() => {

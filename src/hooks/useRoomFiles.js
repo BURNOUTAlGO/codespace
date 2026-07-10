@@ -13,7 +13,6 @@ export function useRoomFiles(roomId) {
   const [saveState, setSaveState] = useState('synced')
   const debouncersRef = useRef({})
   const editingFilesRef = useRef(new Set())
-  const createdInitialRef = useRef(false)
 
   useEffect(() => {
     if (!roomId) return
@@ -27,17 +26,6 @@ setFiles(list)
       setLoading(false)
 
       setActiveFileId((prev) => (prev && list.some((f) => f.id === prev) ? prev : list[0]?.id ?? null))
-
-      if (list.length === 0 && !createdInitialRef.current) {
-        createdInitialRef.current = true
-        await addDoc(filesRef, {
-          name: 'untitled',
-          code: '',
-          description: '',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-      }
     })
     return () => unsub()
   }, [roomId])

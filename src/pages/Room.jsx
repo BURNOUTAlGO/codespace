@@ -6,6 +6,8 @@ import CodeEditor from '../components/CodeEditor'
 import PresenceIndicator from '../components/PresenceIndicator'
 import CopyLinkButton from '../components/CopyLinkButton'
 import CopyCodeButton from '../components/CopyCodeButton'
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 const FolderIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -78,6 +80,7 @@ const FileBadge = ({ name }) => {
 
 const Room = () => {
   const { id } = useParams()
+  const [roomExists, setRoomExists] = useState(null);
   const {
     files, activeFileId, setActiveFileId, addFile, updateFileCode, updateFileDescription,
     renameFile, deleteFile, saveState, loading,
@@ -102,6 +105,22 @@ const Room = () => {
       return []
     }
   })
+
+  useEffect(() => {
+  const checkRoom = async () => {
+    try {
+      const roomRef = doc(db, "rooms", id);
+      const roomSnap = await getDoc(roomRef);
+
+      setRoomExists(roomSnap.exists());
+    } catch (err) {
+      console.error(err);
+      setRoomExists(false);
+    }
+  };
+
+  checkRoom();
+}, [id]);
 
   // Persist open tabs whenever they change
 useEffect(() => {
@@ -215,6 +234,13 @@ useEffect(() => {
     deleteFile(fileId)
     setOpenFileIds((prev) => prev.filter((fid) => fid !== fileId))
   }
+  if (roomExists === null) {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center text-white">
+      Checking room...
+    </div>
+  );
+}
 
   if (loading) {
     return (
@@ -223,6 +249,28 @@ useEffect(() => {
       </div>
     )
   }
+
+  // if room does not exist, show a "Room Not Found" message for the url validation
+  if (!roomExists) {
+  return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center text-center px-6">
+      <h1 className="text-4xl font-bold text-white mb-3">
+        Room Not Found
+      </h1>
+
+      <p className="text-white/60 mb-8 max-w-md">
+        The room you're trying to join doesn't exist or has been deleted.
+      </p>
+
+      <Link
+        to="/"
+        className="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 transition"
+      >
+        Go Home
+      </Link>
+    </div>
+  );
+}
 
   return (
     <div className="h-screen bg-black text-text flex overflow-hidden relative">
@@ -412,7 +460,6 @@ useEffect(() => {
         <div className="flex-1 min-h-0 relative">
           {activeFile ? (
 <CodeEditor
-  key={activeFile.id}
   value={activeFile.code}
   fileName={activeFile.name}
   onChange={(val) => updateFileCode(activeFile.id, val)}

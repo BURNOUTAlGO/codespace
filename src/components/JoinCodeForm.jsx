@@ -1,22 +1,39 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 const JoinCodeForm = () => {
   const [value, setValue] = useState('')
   const navigate = useNavigate()
 
-  const handleJoin = (e) => {
-    e.preventDefault()
-    const trimmed = value.trim()
-    if (!trimmed) return
+const handleJoin = async (e) => {
+  e.preventDefault();
 
-    let roomId = trimmed
-    if (trimmed.includes('/s/')) {
-      roomId = trimmed.split('/s/')[1]?.split(/[/?#]/)[0] || trimmed
+  const trimmed = value.trim();
+  if (!trimmed) return;
+
+  let roomId = trimmed;
+
+  if (trimmed.includes("/s/")) {
+    roomId = trimmed.split("/s/")[1]?.split(/[/?#]/)[0] || trimmed;
+  }
+
+  try {
+    const roomRef = doc(db, "rooms", roomId);
+    const roomSnap = await getDoc(roomRef);
+
+    if (!roomSnap.exists()) {
+      alert("❌ Room does not exist.");
+      return;
     }
 
-    navigate(`/s/${roomId}`)
+    navigate(`/s/${roomId}`);
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong.");
   }
+};
 
   return (
     <form onSubmit={handleJoin} className="flex flex-col gap-4 ">
