@@ -104,23 +104,28 @@ const Room = () => {
   })
 
   // Persist open tabs whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(openTabsKey, JSON.stringify(openFileIds))
-    } catch {
-      // ignore storage errors
-    }
-  }, [openFileIds, openTabsKey])
+useEffect(() => {
+  console.log("Saving tabs:", openFileIds)
+
+  try {
+    localStorage.setItem(openTabsKey, JSON.stringify(openFileIds))
+  } catch {
+    // ignore storage errors
+  }
+}, [openFileIds, openTabsKey])
 
   // Seed / restore open tabs once files first load
-  useEffect(() => {
-    if (files.length === 0) return
-    setOpenFileIds((prev) => {
-      const validPrev = prev.filter((fid) => files.some((f) => f.id === fid))
-      if (validPrev.length > 0) return validPrev
-      return activeFileId ? [activeFileId] : [files[0].id]
-    })
-  }, [files.length]) // eslint-disable-line react-hooks/exhaustive-deps
+useEffect(() => {
+  if (files.length === 0) return
+
+  console.log("Restoring tabs from state:", openFileIds)
+
+  setOpenFileIds((prev) => {
+    const validPrev = prev.filter((fid) => files.some((f) => f.id === fid))
+    if (validPrev.length > 0) return validPrev
+    return activeFileId ? [activeFileId] : [files[0].id]
+  })
+}, [files.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Drop tabs whose file no longer exists (e.g. deleted by another collaborator)
   useEffect(() => {
@@ -150,6 +155,14 @@ const Room = () => {
       }
     }
   }, [activeFileId, activeTabKey])
+  useEffect(() => {
+  if (!activeFileId) return;
+
+  setOpenFileIds((prev) => {
+    if (prev.includes(activeFileId)) return prev;
+    return [...prev, activeFileId];
+  });
+}, [activeFileId]);
 
   const openFiles = files.filter((f) => openFileIds.includes(f.id))
   const activeFile = files.find((f) => f.id === activeFileId)
@@ -333,7 +346,7 @@ const Room = () => {
       {/* Main codebase area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Info bar top */}
-        <div className="h-10 bg-[#030108] border-b border-purple-900/40 flex items-center justify-between px-4 flex-shrink-0 gap-2">
+        <div className="h-10 bg-[#0d0620] border-b border-purple-900/40 flex items-center justify-between px-4 flex-shrink-0 gap-2">
           <span className="font-mono text-xs text-text-muted truncate">Room Id: {id}</span>
           <CopyLinkButton />
         </div>
