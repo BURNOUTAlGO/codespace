@@ -1,23 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { doc, setDoc } from 'firebase/firestore'
-import { db } from '../firebase'
 import { useRoomFiles } from '../hooks/useRoomFiles'
 import { usePresence } from '../hooks/usePresence'
 import CodeEditor from '../components/CodeEditor'
 import PresenceIndicator from '../components/PresenceIndicator'
 import CopyLinkButton from '../components/CopyLinkButton'
+import CopyCodeButton from '../components/CopyCodeButton'
 
 const FolderIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-  </svg>
-)
-
-const FileIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
   </svg>
 )
 
@@ -43,27 +35,127 @@ const MenuIcon = () => (
   </svg>
 )
 
+const PanelIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <line x1="9" y1="4" x2="9" y2="20" />
+  </svg>
+)
+
+const PencilIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+  </svg>
+)
+
+const getFileMeta = (name = '') => {
+  const ext = name.split('.').pop()?.toLowerCase()
+  const map = {
+    html: { label: '5', bg: 'bg-[#a855f7]', fg: 'text-white', lang: 'HTML' },
+    htm: { label: '5', bg: 'bg-[#a855f7]', fg: 'text-white', lang: 'HTML' },
+    js: { label: 'JS', bg: 'bg-[#f7df1e]', fg: 'text-black', lang: 'JavaScript' },
+    jsx: { label: 'JS', bg: 'bg-[#f7df1e]', fg: 'text-black', lang: 'JavaScript' },
+    ts: { label: 'TS', bg: 'bg-[#3178c6]', fg: 'text-white', lang: 'TypeScript' },
+    tsx: { label: 'TS', bg: 'bg-[#3178c6]', fg: 'text-white', lang: 'TypeScript' },
+    java: { label: 'J', bg: 'bg-[#f89820]', fg: 'text-white', lang: 'Java' },
+    py: { label: 'Py', bg: 'bg-[#3776ab]', fg: 'text-white', lang: 'Python' },
+    css: { label: '#', bg: 'bg-[#2965f1]', fg: 'text-white', lang: 'CSS' },
+    json: { label: '{}', bg: 'bg-[#cbcb41]', fg: 'text-black', lang: 'JSON' },
+    md: { label: 'M', bg: 'bg-[#519aba]', fg: 'text-white', lang: 'Markdown' },
+  }
+  return map[ext] || { label: '•', bg: 'bg-purple-600', fg: 'text-white', lang: 'Plain Text' }
+}
+
+const FileBadge = ({ name }) => {
+  const meta = getFileMeta(name)
+  return (
+    <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm ${meta.bg} ${meta.fg} text-[8px] font-bold flex-shrink-0`}>
+      {meta.label}
+    </span>
+  )
+}
+
 const Room = () => {
   const { id } = useParams()
   const {
-    files, activeFileId, setActiveFileId, addFile, updateFileCode, renameFile, deleteFile, saveState, loading,
+    files, activeFileId, setActiveFileId, addFile, updateFileCode, updateFileDescription,
+    renameFile, deleteFile, saveState, loading,
   } = useRoomFiles(id)
   const presenceCount = usePresence(id)
 
-  const [description, setDescription] = useState('')
-  const [showDescription, setShowDescription] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [addingFile, setAddingFile] = useState(false)
   const [newFileName, setNewFileName] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true)
 
+  const openTabsKey = `codeshare:openTabs:${id}`
+  const activeTabKey = `codeshare:activeTab:${id}`
+
+  const [openFileIds, setOpenFileIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem(openTabsKey)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  // Persist open tabs whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(openTabsKey, JSON.stringify(openFileIds))
+    } catch {
+      // ignore storage errors
+    }
+  }, [openFileIds, openTabsKey])
+
+  // Seed / restore open tabs once files first load
+  useEffect(() => {
+    if (files.length === 0) return
+    setOpenFileIds((prev) => {
+      const validPrev = prev.filter((fid) => files.some((f) => f.id === fid))
+      if (validPrev.length > 0) return validPrev
+      return activeFileId ? [activeFileId] : [files[0].id]
+    })
+  }, [files.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Drop tabs whose file no longer exists (e.g. deleted by another collaborator)
+  useEffect(() => {
+    setOpenFileIds((prev) => prev.filter((fid) => files.some((f) => f.id === fid)))
+  }, [files])
+
+  // Restore previously active tab on load, if it's still valid
+  useEffect(() => {
+    if (files.length === 0) return
+    try {
+      const savedActive = localStorage.getItem(activeTabKey)
+      if (savedActive && files.some((f) => f.id === savedActive)) {
+        setActiveFileId(savedActive)
+      }
+    } catch {
+      // ignore
+    }
+  }, [files.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist active tab whenever it changes
+  useEffect(() => {
+    if (activeFileId) {
+      try {
+        localStorage.setItem(activeTabKey, activeFileId)
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeFileId, activeTabKey])
+
+  const openFiles = files.filter((f) => openFileIds.includes(f.id))
   const activeFile = files.find((f) => f.id === activeFileId)
   const saveLabel = saveState === 'saving' ? 'saving...' : saveState === 'error' ? 'error saving' : 'synced'
-
-  const handleSaveDescription = async () => {
-    await setDoc(doc(db, 'rooms', id), { description }, { merge: true })
-  }
+  const activeMeta = activeFile ? getFileMeta(activeFile.name) : null
+  const lineCount = activeFile ? Math.max(activeFile.code.split('\n').length, 1) : 1
 
   const startRename = (file) => {
     setRenamingId(file.id)
@@ -75,21 +167,40 @@ const Room = () => {
     setRenamingId(null)
   }
 
-  const commitNewFile = () => {
+  const commitNewFile = async () => {
     const name = newFileName.trim()
-    if (name) addFile(name)
+    if (name) {
+      const newId = await addFile(name)
+      setOpenFileIds((prev) => (prev.includes(newId) ? prev : [...prev, newId]))
+    }
     setNewFileName('')
     setAddingFile(false)
+  }
+
+  const selectFile = (fileId) => {
+    setOpenFileIds((prev) => (prev.includes(fileId) ? prev : [...prev, fileId]))
+    setActiveFileId(fileId)
+    setMobileSidebarOpen(false)
+  }
+
+  const activateTab = (fileId) => {
+    setActiveFileId(fileId)
+  }
+
+  const closeTab = (fileId) => {
+    setOpenFileIds((prev) => {
+      const next = prev.filter((fid) => fid !== fileId)
+      if (fileId === activeFileId) {
+        setActiveFileId(next.length > 0 ? next[next.length - 1] : null)
+      }
+      return next
+    })
   }
 
   const handleDelete = (fileId) => {
     if (files.length <= 1) return
     deleteFile(fileId)
-  }
-
-  const selectFile = (fileId) => {
-    setActiveFileId(fileId)
-    setSidebarOpen(false) // auto-close drawer on mobile after picking a file
+    setOpenFileIds((prev) => prev.filter((fid) => fid !== fileId))
   }
 
   if (loading) {
@@ -103,28 +214,31 @@ const Room = () => {
   return (
     <div className="h-screen bg-black text-text flex overflow-hidden relative">
       {/* Mobile backdrop */}
-      {sidebarOpen && (
+      {mobileSidebarOpen && (
         <div
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setMobileSidebarOpen(false)}
           className="fixed inset-0 bg-black/60 z-40 md:hidden animate-fade-in"
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 w-64 flex flex-col flex-shrink-0
-          bg-gradient-to-b from-purple-950 via-[#1b0e33]
+        className={`fixed md:static inset-y-0 left-0 z-50 flex flex-col flex-shrink-0
+          bg-gradient-to-b from-purple-950 via-[#1b0e33] to-bg-black
           border-r border-purple-900/60
-          transform transition-transform duration-200 ease-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+          transform transition-all duration-200 ease-out overflow-hidden
+          w-64
+          ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0
+          ${desktopSidebarOpen ? 'md:w-64 md:border-r' : 'md:w-0 md:border-r-0'}`}
       >
-        <div className="px-4 h-14 flex items-center justify-between border-b border-purple-900/60 flex-shrink-0">
+        <div className="px-4 h-14 flex items-center justify-between border-b border-purple-900/60 flex-shrink-0 w-64">
           <Link to="/" className="flex items-center gap-2 font-mono font-bold text-sm text-white">
-            <span className="text-accent">{'<>'}</span>
-            codeshare
+            <span className="text-white">{'<>'}</span>
+            CodeSpace
           </Link>
           <button
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => setMobileSidebarOpen(false)}
             aria-label="Close sidebar"
             className="md:hidden text-purple-300 hover:text-white transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md"
           >
@@ -132,7 +246,7 @@ const Room = () => {
           </button>
         </div>
 
-        <div className="px-4 py-4 flex-1 overflow-y-auto">
+        <div className="px-4 py-4 flex-1 overflow-y-auto w-64 no-scrollbar">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] tracking-widest text-purple-300 uppercase">Explorer</p>
             <button
@@ -157,10 +271,9 @@ const Room = () => {
                   file.id === activeFileId ? 'bg-white/10 text-white' : 'text-purple-200 hover:bg-white/5'
                 }`}
                 onClick={() => selectFile(file.id)}
-                onDoubleClick={() => startRename(file)}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <FileIcon />
+                  <FileBadge name={file.name} />
                   {renamingId === file.id ? (
                     <input
                       autoFocus
@@ -175,21 +288,33 @@ const Room = () => {
                     <span className="truncate">{file.name}</span>
                   )}
                 </div>
-                {files.length > 1 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(file.id) }}
-                    aria-label={`Delete ${file.name}`}
-                    className="opacity-0 group-hover:opacity-100 text-purple-300 hover:text-red-400 transition-opacity duration-150 flex-shrink-0"
-                  >
-                    <XIcon />
-                  </button>
+
+                {renamingId !== file.id && (
+                  <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150 flex-shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); startRename(file) }}
+                      aria-label={`Rename ${file.name}`}
+                      className="text-purple-300 hover:text-white p-0.5"
+                    >
+                      <PencilIcon />
+                    </button>
+                    {files.length > 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(file.id) }}
+                        aria-label={`Delete ${file.name}`}
+                        className="text-purple-300 hover:text-red-400 p-0.5"
+                      >
+                        <XIcon />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             ))}
 
             {addingFile && (
               <div className="flex items-center gap-2 text-xs px-2 py-1.5">
-                <FileIcon />
+                <span className="w-3.5 h-3.5 flex-shrink-0" />
                 <input
                   autoFocus
                   value={newFileName}
@@ -205,77 +330,107 @@ const Room = () => {
         </div>
       </aside>
 
-      {/* Main */}
+      {/* Main codebase area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Tab bar */}
-        <div className="h-10 border-b border-border flex items-center px-2 flex-shrink-0 overflow-x-auto gap-1">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open file explorer"
-            className="md:hidden text-text-muted hover:text-text transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md flex-shrink-0 mr-1"
-          >
-            <MenuIcon />
-          </button>
-          {files.map((file) => (
-            <div
-              key={file.id}
-              onClick={() => setActiveFileId(file.id)}
-              className={`flex items-center gap-2 text-xs border rounded-t-md px-3 py-2 -mb-px cursor-pointer flex-shrink-0 mr-1 transition-colors duration-150 ${
-                file.id === activeFileId
-                  ? 'bg-bg border-border border-b-0 text-text'
-                  : 'border-transparent text-text-muted hover:text-text'
-              }`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-600 flex-shrink-0" />
-              {file.name}
-            </div>
-          ))}
-        </div>
-
-        {/* Info bar */}
-        <div className="h-12 border-b border-border flex items-center justify-between px-4 flex-shrink-0 gap-2">
-          <span className="font-mono text-xs text-text-muted truncate">{id}</span>
-          <PresenceIndicator count={presenceCount} />
+        {/* Info bar top */}
+        <div className="h-10 bg-[#030108] border-b border-purple-900/40 flex items-center justify-between px-4 flex-shrink-0 gap-2">
+          <span className="font-mono text-xs text-text-muted truncate">Room Id: {id}</span>
           <CopyLinkButton />
         </div>
 
-        {/* Description */}
-        <div className="border-b border-border px-4 py-2 flex-shrink-0">
-          {showDescription ? (
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={() => { handleSaveDescription(); if (!description) setShowDescription(false) }}
-              placeholder="Add a description (optional)"
-              autoFocus
-              className="w-full bg-transparent text-sm text-text-muted placeholder:text-text-muted focus:outline-none focus:text-text"
-            />
-          ) : (
+        {/* File tabs — only OPEN files show here */}
+        <div className="h-11 border-b border-purple-900/40 flex items-center flex-shrink-0 bg-[#0d0620] gap-3">
+          <div className="flex items-center flex-shrink-0 pl-2 gap-1">
             <button
-              onClick={() => setShowDescription(true)}
-              className="text-sm text-text-muted hover:text-text transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md"
+              onClick={() => setMobileSidebarOpen(true)}
+              aria-label="Open file explorer"
+              className="md:hidden text-text-muted hover:text-text transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md"
             >
-              {description || '+ Add a description'}
+              <MenuIcon />
             </button>
-          )}
+            <button
+              onClick={() => setDesktopSidebarOpen((v) => !v)}
+              aria-label={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              title={desktopSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              className="hidden md:flex text-text-muted hover:text-text transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md"
+            >
+              <PanelIcon />
+            </button>
+          </div>
+
+          <div className="flex-1 flex items-center overflow-x-auto gap-1 px-2 min-w-0 no-scrollbar">
+            {openFiles.map((file) => (
+              <div
+                key={file.id}
+                onClick={() => activateTab(file.id)}
+                className={`group/tab flex items-center gap-2 text-xs rounded-t-md pl-3 pr-2 py-2 cursor-pointer flex-shrink-0 transition-colors duration-150 ${
+                  file.id === activeFileId
+                    ? 'bg-[#160a37] text-text border-t border-x border-purple-900/40'
+                    : 'text-text-muted hover:text-text'
+                }`}
+              >
+                <FileBadge name={file.name} />
+                {file.name}
+                <button
+                  onClick={(e) => { e.stopPropagation(); closeTab(file.id) }}
+                  aria-label={`Close ${file.name}`}
+                  className="ml-1 text-text-muted hover:text-text opacity-60 hover:opacity-100 transition-opacity duration-150"
+                >
+                  <XIcon />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Editor */}
-        <div className="flex-1 min-h-0">
-          {activeFile && (
+        {/* Description — unique per file, with copy-code button */}
+        <div className="h-[35px] bg-[#0d0620] border-b border-purple-900/40 px-4 py-2 flex-shrink-0 flex items-center justify-between gap-3">
+          <input
+            type="text"
+            value={activeFile?.description || ''}
+            onChange={(e) => activeFile && updateFileDescription(activeFile.id, e.target.value)}
+            placeholder="Add a description for this file..."
+            className="flex-1 min-w-0 bg-transparent text-sm text-text-muted placeholder:text-text-muted focus:outline-none focus:text-text"
+          />
+          <CopyCodeButton code={activeFile?.code} />
+        </div>
+
+        {/* Editor + floating presence */}
+        <div className="flex-1 min-h-0 relative">
+          {activeFile ? (
             <CodeEditor
               key={activeFile.id}
               value={activeFile.code}
               onChange={(val) => updateFileCode(activeFile.id, val)}
               placeholder="Start typing or paste your code..."
             />
+          ) : (
+            <div className="h-full flex items-center justify-center text-text-muted text-sm">
+              Select a file from the sidebar to open it
+            </div>
           )}
+          <div className="absolute bottom-3 right-4">
+            <div className="bg-[#0d0620] backdrop-blur border border-purple-900/40 rounded-full px-3 py-1.5 shadow-none">
+              <PresenceIndicator count={presenceCount} />
+            </div>
+          </div>
         </div>
 
-        {/* Save state */}
-        <div className="h-8 flex items-center px-4 border-t border-border flex-shrink-0">
-          <span className="text-[11px] text-text-muted font-mono">{saveLabel}</span>
+        {/* Status bar */}
+        <div className="h-8 flex items-center justify-between px-4 border-t border-border flex-shrink-0 text-[11px] text-text-muted">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`h-1.5 w-1.5 rounded-full ${saveState === 'saving' ? 'bg-yellow-400 animate-pulse' : saveState === 'error' ? 'bg-red-400' : 'bg-emerald-400'}`} />
+              {saveLabel}
+            </span>
+            <span className="hidden sm:inline">main</span>
+            <span className="hidden sm:inline">UTF-8</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {activeMeta && <span>{activeMeta.lang}</span>}
+            <span className="hidden sm:inline">{lineCount} {lineCount === 1 ? 'line' : 'lines'}</span>
+            <span className="hidden md:inline">Spaces: 2</span>
+          </div>
         </div>
       </div>
     </div>

@@ -26,12 +26,12 @@ export function useRoomFiles(roomId) {
 
       setActiveFileId((prev) => (prev && list.some((f) => f.id === prev) ? prev : list[0]?.id ?? null))
 
-      // First time anyone opens this room and it has zero files, seed one empty file
       if (list.length === 0 && !createdInitialRef.current) {
         createdInitialRef.current = true
         await addDoc(filesRef, {
           name: 'untitled',
           code: '',
+          description: '',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         })
@@ -46,6 +46,7 @@ export function useRoomFiles(roomId) {
       const docRef = await addDoc(filesRef, {
         name,
         code: '',
+        description: '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
@@ -79,6 +80,12 @@ export function useRoomFiles(roomId) {
     getDebouncer(fileId)({ code })
   }
 
+  const updateFileDescription = (fileId, description) => {
+    setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, description } : f)))
+    setSaveState('saving')
+    getDebouncer(fileId)({ description })
+  }
+
   const renameFile = async (fileId, name) => {
     if (!name.trim()) return
     setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, name } : f)))
@@ -89,5 +96,8 @@ export function useRoomFiles(roomId) {
     await deleteDoc(doc(db, 'rooms', roomId, 'files', fileId))
   }
 
-  return { files, activeFileId, setActiveFileId, addFile, updateFileCode, renameFile, deleteFile, saveState, loading }
+  return {
+    files, activeFileId, setActiveFileId, addFile, updateFileCode, updateFileDescription,
+    renameFile, deleteFile, saveState, loading,
+  }
 }

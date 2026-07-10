@@ -6,7 +6,7 @@ const CopyLinkButton = () => {
   return (
     <button
       onClick={() => copy(window.location.href)}
-      className="flex items-center gap-1.5 text-xs border border-border rounded-md px-3 py-1.5 hover:border-text-muted transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="flex items-center gap-1.5 text-xs rounded-md px-3 py-1.5 hover:border-text-muted transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
       {copied ? (
         <>
