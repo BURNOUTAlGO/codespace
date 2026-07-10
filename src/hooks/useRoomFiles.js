@@ -12,6 +12,7 @@ export function useRoomFiles(roomId) {
   const [loading, setLoading] = useState(true)
   const [saveState, setSaveState] = useState('synced')
   const debouncersRef = useRef({})
+  const editingFilesRef = useRef(new Set())
   const createdInitialRef = useRef(false)
 
   useEffect(() => {
@@ -21,23 +22,8 @@ export function useRoomFiles(roomId) {
 
     const unsub = onSnapshot(q, async (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-     setFiles((prev) => {
-  return list.map((remote) => {
-    const local = prev.find((f) => f.id === remote.id)
 
-    // If local file is currently being saved,
-    // don't overwrite its code.
-    if (local && saveState === "saving") {
-      return {
-        ...remote,
-        code: local.code,
-        description: local.description,
-      }
-    }
-
-    return remote
-  })
-})
+setFiles(list)
       setLoading(false)
 
       setActiveFileId((prev) => (prev && list.some((f) => f.id === prev) ? prev : list[0]?.id ?? null))
@@ -80,8 +66,11 @@ export function useRoomFiles(roomId) {
             ...fields,
             updatedAt: serverTimestamp(),
           })
+          editingFilesRef.current.delete(fileId)
           setSaveState('synced')
+          
         } catch (err) {
+          editingFilesRef.current.delete(fileId)
           console.error('Save failed:', err)
           setSaveState('error')
         }
@@ -91,6 +80,7 @@ export function useRoomFiles(roomId) {
   }
 
   const updateFileCode = (fileId, code) => {
+    editingFilesRef.current.add(fileId)
     setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, code } : f)))
     setSaveState('saving')
     getDebouncer(fileId)({ code })
