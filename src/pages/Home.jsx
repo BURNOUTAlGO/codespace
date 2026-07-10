@@ -15,6 +15,7 @@ import Navbar from "../components/Navbar";
 import { generateRoomId } from "../utils/generateRoomId";
 import { doc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
+import { cleanupExpiredRooms } from "../utils/cleanupRooms";
 
 
 /* ---------- Syntax color map ---------- */
@@ -115,6 +116,9 @@ const fileCharCount = (file) =>
 const Home = () => {
   const starsRef = useRef(null);
   const navigate = useNavigate();
+  useEffect(() => {
+  cleanupExpiredRooms();
+}, []);
   const [activeFile, setActiveFile] = useState(0);
   const [typed, setTyped] = useState(0);
   const [activeWindow, setActiveWindow] = useState(0);
@@ -126,9 +130,10 @@ const handleShareCode = async () => {
   const roomId = generateRoomId();
 
   // Create room document
-  await setDoc(doc(db, "rooms", roomId), {
-    createdAt: serverTimestamp(),
-  });
+await setDoc(doc(db, "rooms", roomId), {
+  createdAt: serverTimestamp(),
+  lastActiveAt: serverTimestamp(),
+});
 
   // Create default file
   await addDoc(collection(db, "rooms", roomId, "files"), {

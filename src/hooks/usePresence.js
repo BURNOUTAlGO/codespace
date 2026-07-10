@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { collection, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  updateDoc,
+  onSnapshot,
+  serverTimestamp
+} from 'firebase/firestore'
 import { db } from '../firebase'
+
 
 const HEARTBEAT_INTERVAL = 15000
 const STALE_AFTER = 30000
@@ -11,9 +20,22 @@ export function usePresence(roomId) {
 
   useEffect(() => {
     if (!roomId) return
-    const presenceRef = doc(db, 'rooms', roomId, 'presence', sessionId)
+    const presenceRef = doc(db, 'rooms', roomId, 'presence', sessionId);
+    const roomRef = doc(db, "rooms", roomId);
 
-    const beat = () => setDoc(presenceRef, { lastSeen: serverTimestamp() }).catch(() => {})
+  const beat = async () => {
+  try {
+    await setDoc(presenceRef, {
+      lastSeen: serverTimestamp(),
+    });
+
+    await updateDoc(roomRef, {
+      lastActiveAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error(err);
+  }
+};
     beat()
     const interval = setInterval(beat, HEARTBEAT_INTERVAL)
 

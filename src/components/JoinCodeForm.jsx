@@ -18,7 +18,7 @@ const handleJoin = async (e) => {
   if (trimmed.includes("/s/")) {
     roomId = trimmed.split("/s/")[1]?.split(/[/?#]/)[0] || trimmed;
   }
-
+// toast lagana hai 
   try {
     const roomRef = doc(db, "rooms", roomId);
     const roomSnap = await getDoc(roomRef);
