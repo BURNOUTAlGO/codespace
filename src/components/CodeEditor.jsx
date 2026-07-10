@@ -1,46 +1,77 @@
-import { useRef } from 'react'
+import CodeMirror from "@uiw/react-codemirror";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { javascript } from "@codemirror/lang-javascript";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { json } from "@codemirror/lang-json";
+import { java } from "@codemirror/lang-java";
+import { python } from "@codemirror/lang-python";
 
-const CodeEditor = ({ value, onChange, placeholder }) => {
-  const gutterRef = useRef(null)
-  const textareaRef = useRef(null)
+const getExtension = (fileName = "") => {
+  const ext = fileName.split(".").pop()?.toLowerCase();
 
-  const lineCount = Math.max(value.split('\n').length, 1)
+  switch (ext) {
+    case "js":
+    case "jsx":
+      return javascript({ jsx: true });
 
-  const syncScroll = () => {
-    if (gutterRef.current && textareaRef.current) {
-      gutterRef.current.scrollTop = textareaRef.current.scrollTop
-    }
+    case "ts":
+    case "tsx":
+      return javascript({ typescript: true });
+
+    case "html":
+      return html();
+
+    case "css":
+      return css();
+
+    case "json":
+      return json();
+
+    case "java":
+      return java();
+
+    case "py":
+      return python();
+
+    default:
+      return javascript();
   }
+};
 
+
+
+
+
+const CodeEditor = ({ value, onChange, fileName }) => {
   return (
-    <div className="flex h-full bg-[#030108] overflow-hidden">
-      <div
-        ref={gutterRef}
-        className="select-none text-right pr-3 pl-4 pt-4 text-xs text-text-muted/50 font-mono overflow-hidden flex-shrink-0"
-        style={{ minWidth: '3rem', lineHeight: '1.625rem' }}
-      >
-        {Array.from({ length: lineCount }, (_, i) => (
-          <div key={i} style={{ height: '1.625rem' }}>{i + 1}</div>
-        ))}
-      </div>
-      <textarea
-        ref={textareaRef}
+    <div className="h-full bg-[#030108]">
+      <CodeMirror
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onScroll={syncScroll}
-        placeholder={placeholder}
-        spellCheck="false"
-        wrap="off"
-        className="no-scrollbar flex-1 h-full bg-[#030108] text-text font-mono text-sm pt-4 pb-4 pr-6 pl-2 resize-none focus:outline-none placeholder:text-text-muted border-0"
+        height="100%"
+        theme={oneDark}
+        extensions={[getExtension(fileName)]}
+        onChange={(value) => onChange(value)}
+basicSetup={{
+  lineNumbers: true,
+  foldGutter: true,
+  highlightActiveLine: true,
+  highlightActiveLineGutter: true,
+  bracketMatching: true,
+  autocompletion: true,
+  closeBrackets: true,
+  indentOnInput: true,
+  drawSelection: true,
+}}
         style={{
-          lineHeight: '1.625rem',
-          whiteSpace: 'pre',
-          overflowX: 'auto',
-          overflowY: 'auto',
+          height: "100%",
+          fontSize: "14px",
+          
+          fontFamily: "JetBrains Mono, monospace",
         }}
       />
     </div>
-  )
-}
+  );
+};
 
-export default CodeEditor
+export default CodeEditor;

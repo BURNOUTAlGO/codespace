@@ -21,7 +21,23 @@ export function useRoomFiles(roomId) {
 
     const unsub = onSnapshot(q, async (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      setFiles(list)
+     setFiles((prev) => {
+  return list.map((remote) => {
+    const local = prev.find((f) => f.id === remote.id)
+
+    // If local file is currently being saved,
+    // don't overwrite its code.
+    if (local && saveState === "saving") {
+      return {
+        ...remote,
+        code: local.code,
+        description: local.description,
+      }
+    }
+
+    return remote
+  })
+})
       setLoading(false)
 
       setActiveFileId((prev) => (prev && list.some((f) => f.id === prev) ? prev : list[0]?.id ?? null))

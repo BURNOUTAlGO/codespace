@@ -411,12 +411,12 @@ useEffect(() => {
         {/* Editor + floating presence */}
         <div className="flex-1 min-h-0 relative">
           {activeFile ? (
-            <CodeEditor
-              key={activeFile.id}
-              value={activeFile.code}
-              onChange={(val) => updateFileCode(activeFile.id, val)}
-              placeholder="Start typing or paste your code..."
-            />
+<CodeEditor
+  key={activeFile.id}
+  value={activeFile.code}
+  fileName={activeFile.name}
+  onChange={(val) => updateFileCode(activeFile.id, val)}
+/>
           ) : (
             <div className="h-full flex items-center justify-center text-text-muted text-sm">
               Select a file from the sidebar to open it
