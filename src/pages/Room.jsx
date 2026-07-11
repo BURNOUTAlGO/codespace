@@ -236,7 +236,7 @@ useEffect(() => {
   }
   if (roomExists === null) {
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center text-white">
+    <div className="min-h-screen bg-black flex items-center justify-center text-text-muted text-sm font-mono">
       Checking room...
     </div>
   );
@@ -244,7 +244,7 @@ useEffect(() => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg flex items-center justify-center text-text-muted text-sm font-mono">
+      <div className="min-h-screen bg-black flex items-center justify-center text-text-muted text-sm font-mono">
         loading room...
       </div>
     )
@@ -253,18 +253,18 @@ useEffect(() => {
   // if room does not exist, show a "Room Not Found" message for the url validation
   if (!roomExists) {
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center text-center px-6">
-      <h1 className="text-4xl font-bold text-white mb-3">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center text-text-muted text-sm font-mono pl-3 pr-3">
+      <h1 className="text-4xl font-bold text-white mb-3 text-center">
         Room Not Found
       </h1>
 
-      <p className="text-white/60 mb-8 max-w-md">
+      <p className="text-white/60 mb-6 max-w-md text-center">
         The room you're trying to join doesn't exist or has been deleted.
       </p>
 
       <Link
         to="/"
-        className="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 transition"
+        className="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 transition text-white"
       >
         Go Home
       </Link>
