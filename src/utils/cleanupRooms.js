@@ -6,7 +6,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 
-const ROOM_EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours
+const ROOM_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export async function cleanupExpiredRooms() {
   try {
@@ -25,13 +25,30 @@ export async function cleanupExpiredRooms() {
       // Room is still active
       if (now - lastActive < ROOM_EXPIRY_MS) continue;
 
-      // Check active users
-      const presenceSnap = await getDocs(
-        collection(db, "rooms", room.id, "presence")
-      );
+// Check active users
+const presenceSnap = await getDocs(
+  collection(db, "rooms", room.id, "presence")
+);
 
-      // Someone is still inside
-      if (!presenceSnap.empty) continue;
+let activeUsers = 0;
+
+presenceSnap.forEach((p) => {
+  const ts = p.data().lastSeen;
+
+  if (!ts) return;
+
+  const lastSeen = ts.toDate().getTime();
+
+  // User heartbeat received within last 30 seconds
+  if (now - lastSeen < 30000) {
+    activeUsers++;
+  }
+});
+
+// Room still has active users
+if (activeUsers > 0) {
+  continue;
+}
 
       console.log("Deleting expired room:", room.id);
 
@@ -45,9 +62,10 @@ export async function cleanupExpiredRooms() {
       }
 
       // Delete stale presence docs
-      for (const p of presenceSnap.docs) {
-        await deleteDoc(p.ref);
-      }
+
+for (const p of presenceSnap.docs) {
+  await deleteDoc(p.ref);
+}
 
       // Delete room document
       await deleteDoc(doc(db, "rooms", room.id));
