@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Start from "./pages/Start";
 import Room from "./pages/Room";
+import { Toaster } from "sonner";
 
 import { cleanupExpiredRooms } from "./utils/cleanupRooms";
 
@@ -21,6 +22,7 @@ function App() {
   }, []);
 
   return (
+    <>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -28,6 +30,14 @@ function App() {
         <Route path="/s/:id" element={<Room />} />
       </Routes>
     </BrowserRouter>
+        <Toaster
+        position="top-center"
+        richColors
+        closeButton
+        theme="light"
+        duration={1600}
+      />
+      </>
   );
 }
 

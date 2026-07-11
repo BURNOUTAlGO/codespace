@@ -16,6 +16,7 @@ import { generateRoomId } from "../utils/generateRoomId";
 import { doc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { cleanupExpiredRooms } from "../utils/cleanupRooms";
+import { toast } from "sonner";
 
 
 /* ---------- Syntax color map ---------- */
@@ -145,6 +146,8 @@ await setDoc(doc(db, "rooms", roomId), {
   });
 
   navigate(`/s/${roomId}`);
+  toast.success("Room created! Share the link to collaborate.");
+
 };
 
   /* Star field */

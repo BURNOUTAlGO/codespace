@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
+import {toast} from "sonner";
 
 const JoinCodeForm = () => {
   const [value, setValue] = useState('')
@@ -24,14 +25,15 @@ const handleJoin = async (e) => {
     const roomSnap = await getDoc(roomRef);
 
     if (!roomSnap.exists()) {
-      alert("❌ Room does not exist.");
+      toast.error("Room not found")
       return;
     }
 
     navigate(`/s/${roomId}`);
+    toast.success("Joined the room");
   } catch (err) {
     console.error(err);
-    alert("Something went wrong.");
+    toast.error("Something went wrong");
   }
 };
 
